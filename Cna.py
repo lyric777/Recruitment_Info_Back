@@ -27,7 +27,7 @@ def tfidf(doc):
   for i in range(10):
     for it in tfidf_model.transform(doc)[i].indices:
       job_dict[i].append(word_dict[it])
-  # print(job_dict)
+  #print(job_dict)
 
   fliterNode = []
   jobs = ['数据产品经理', '高级产品经理', '产品经理助理', '金融产品经理', '电商产品经理', '售前产品经理', '策略产品经理', '软件产品经理', '法律产品经理', '需求分析师']

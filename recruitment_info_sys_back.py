@@ -72,9 +72,61 @@ def search():
     time2 = time2[:time2.rfind('/') + 1] + str(monthRange)
     res1 = Tfidf.result(job, region, time1, time2)
     res2 = Cna.result(region, time1, time2)
-    print(res2['link'])
+    #print(res2['link'])
     return jsonify({'word_cloud': res1['word_cloud'], 'range': ''+time1+'-'+time2, 'count': res1['count'],
                     'fliterNode': res2['fliterNode'], 'count_all': res2['count_all'], 'link': res2['link']})
+
+
+@app.route('/mark', methods=['GET', 'POST'])
+def mark():
+    user = request.get_json()['user']
+    toggle = request.get_json()['toggle']
+    id = request.get_json()['id']
+    markid = ''
+    host = '127.0.0.1'  # 你的ip地址
+    client = MongoClient(host, 27017)  # 建立客户端对象
+    db = client.recruit  # 连接recruit数据库
+    bookmark = db.bookmark
+    if user != '' and toggle is True and id is None:
+        word_list = request.get_json()['word_list']
+        count = request.get_json()['count']
+        count_all = request.get_json()['count_all']
+        fliterNode = request.get_json()['fliterNode']
+        link = request.get_json()['link']
+        job = request.get_json()['job']
+        region = request.get_json()['region']
+        markdate = request.get_json()['markdate'][2:]
+        marktime = request.get_json()['marktime']
+        time = request.get_json()['range']
+        time1 = time[0]
+        time2 = time[1]
+        time1 = time1[:time1.rfind('/') + 1] + '1'
+        year = int(time2[:4])
+        month = int(time2[5:time2.rfind('/')])
+        monthRange = calendar.monthrange(year, month)[1]
+        time2 = time2[:time2.rfind('/') + 1] + str(monthRange)
+
+        lastrecord = bookmark.find({'name': user}).sort('id', -1).limit(1)
+        if len(lastrecord) != 0:
+            lastid = lastrecord[0]['id']
+            if lastid[:6] != markdate:
+                markid = markdate + '01'
+            else:
+                if int(lastid[6:]) + 1 < 10:
+                    temp = '0' + str((int(lastid[6:]) + 1))
+                else:
+                    temp = str(int(lastid[6:]) + 1)
+                markid = markdate + temp
+        else:
+            markid = markdate + '01'
+        bookmark.insert_one({'user': user, 'id': markid, 'word_list': word_list, 'count': count,
+                             'count_all': count_all, 'fliterNode': fliterNode, 'link': link, 'job': job,
+                             'region': region, 'range': time1 + '-' + time2, 'marktime': marktime, 'status': True})
+    if user != '' and toggle is False and id is not None:
+        bookmark.update_one({'user': user, 'id': id}, {"$set": {'status': False}})
+    if user != '' and toggle is True and id is not None:
+      bookmark.update_one({'user': user, 'id': id}, {"$set": {'status': True}})
+    return jsonify({'id': markid})
 
 
 if __name__ == '__main__':
