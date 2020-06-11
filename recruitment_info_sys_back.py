@@ -82,7 +82,7 @@ def mark():
     user = request.get_json()['user']
     toggle = request.get_json()['toggle']
     id = request.get_json()['id']
-    markid = ''
+    markid = id
     host = '127.0.0.1'  # 你的ip地址
     client = MongoClient(host, 27017)  # 建立客户端对象
     db = client.recruit  # 连接recruit数据库
@@ -106,9 +106,12 @@ def mark():
         monthRange = calendar.monthrange(year, month)[1]
         time2 = time2[:time2.rfind('/') + 1] + str(monthRange)
 
-        lastrecord = bookmark.find({'name': user}).sort('id', -1).limit(1)
-        if len(lastrecord) != 0:
-            lastid = lastrecord[0]['id']
+        lastrecord = None
+        for doc in bookmark.find({'user': user}).sort([('id', -1)]).limit(1):
+            lastrecord = doc
+
+        if lastrecord is not None:
+            lastid = lastrecord['id']
             if lastid[:6] != markdate:
                 markid = markdate + '01'
             else:
@@ -125,8 +128,46 @@ def mark():
     if user != '' and toggle is False and id is not None:
         bookmark.update_one({'user': user, 'id': id}, {"$set": {'status': False}})
     if user != '' and toggle is True and id is not None:
-      bookmark.update_one({'user': user, 'id': id}, {"$set": {'status': True}})
+        bookmark.update_one({'user': user, 'id': id}, {"$set": {'status': True}})
     return jsonify({'id': markid})
+
+
+@app.route('/get_bookmark', methods=['GET', 'POST'])
+def get_bookmark():
+    user = request.get_json()['user']
+    marks = []
+    host = '127.0.0.1'  # 你的ip地址
+    client = MongoClient(host, 27017)  # 建立客户端对象
+    db = client.recruit  # 连接recruit数据库
+    bookmark = db.bookmark
+    for doc in bookmark.find({'user': user, 'status': True}):
+        marks.append({'markId': doc['id'], 'keyword': doc['region']+doc['job'], 'date_range': doc['range'],
+                      'mark_time': doc['marktime']})
+    return jsonify({'bookmark': marks})
+
+
+@app.route('/read_mark', methods=['GET', 'POST'])
+def read_mark():
+    user = request.get_json()['user']
+    id = request.get_json()['id']
+    host = '127.0.0.1'  # 你的ip地址
+    client = MongoClient(host, 27017)  # 建立客户端对象
+    db = client.recruit  # 连接recruit数据库
+    bookmark = db.bookmark
+    res = bookmark.find_one({'user': user, 'id': id}, {"_id": 0})
+    return jsonify({'result': res})
+
+
+@app.route('/del_mark', methods=['GET', 'POST'])
+def del_mark():
+    user = request.get_json()['user']
+    id = request.get_json()['id']
+    host = '127.0.0.1'  # 你的ip地址
+    client = MongoClient(host, 27017)  # 建立客户端对象
+    db = client.recruit  # 连接recruit数据库
+    bookmark = db.bookmark
+    bookmark.update_one({'user': user, 'id': id}, {"$set": {'status': False}})
+    return jsonify({'result': 'OK'})
 
 
 if __name__ == '__main__':
